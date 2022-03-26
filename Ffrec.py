@@ -1,10 +1,13 @@
 #!/usr/bin/python3
-import sys,os,datetime,pyaudio,wave,signal,subprocess
+import sys,os,datetime,pyaudio,wave,subprocess
 from threading import Thread
-DTime = (datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"))
+Now = datetime.datetime.now()
+DTime = (Now.strftime("%Y-%m-%d-%H-%M-%S"))
 Opt_Dir = "ffrec-" + str(DTime)
 Opt_File = "ffrec-%s.mp4"%str(DTime)
 Wavname = "ffrec-%s.wav"%str(DTime)
+WavePath = Opt_Dir+"/"+str(Wavname)
+Wav_Chunks = []
 Stop = False
 
 if os.path.exists(Opt_Dir) is False:
@@ -13,21 +16,13 @@ if os.path.exists(Opt_Dir) is False:
 os.chdir("./"+str(Opt_Dir))
 
 
-def handler(signum, frame):
-        global Stop
-        Stop = True
-        print("\n\nCome on ! Calm Down!\n\n")
-
-signal.signal(signal.SIGINT, handler)
-
-
 def ffmpeg(action,wvp=None,vp=None):
 
    if action == "rec":
       cmd = "ffmpeg -video_size 1024x768 -framerate 4 -f x11grab -i :0.0 %s"%Opt_File
       print("\n\nLaunching ffmpeg(rec):\n\n")
       print(cmd)
-      os.system(cmd)
+      process = subprocess.Popen(['ffmpeg', '-video_size', '1024x768','-framerate','4','-f','x11grab','-i',':0.0',Opt_File])
       Thread(target=CheckProc).start()
 
    if action == "mix":
@@ -62,41 +57,62 @@ def CheckProc():
            time.sleep(1)
         except Exception as e:
            if "returned non-zero exit status 1" in str(e):
+                elapse = datetime.datetime.now() - Now
                 Stop = True
-                print("\n\nRecording has stopped.\n\n")
+                print("\n\nRecording has stopped (%s seconds Recorded) .\n\n"%elapse.seconds)
                 return
 
-def Record(Mic_Device):
+def Wav_Duration(file):
+   try:
+       with wave.open(file,'r') as f:
+           frames = f.getnframes()
+           rate = f.getframerate()
+           wln = round(frames/rate,2)
+           print("\n\nWav Duration:%s\n\n"%datetime.timedelta(seconds=int(wln)))
+   except Exception as e:
+           print("Error:",str(e))
 
-   audio = pyaudio.PyAudio()
-   info = audio.get_host_api_info_by_index(0)
-   frames = []
+def Recording(audio,Mic_Rate,dvid):
+       global Wav_Chunks
+       Wav_Chunks = []
 
-   if type(Mic_Device) == int:
-       Mic_Rate = int(audio.get_device_info_by_index(Mic_Device).get('defaultSampleRate'))
        stream = audio.open(format=pyaudio.paInt16, channels=1,
-                rate=Mic_Rate, input=True,input_device_index = Mic_Device,
+                rate=Mic_Rate, input=True,input_device_index = dvid,
                 frames_per_buffer=512)
-       print("\n\nRecording ...\n\n")
-       ffmpeg("rec")
+       print("\n\nRecording Audio...\n\n")
+       Thread(target=ffmpeg("rec")).start()
        while Stop is False:
                 try:
                    chunk = stream.read(512)
-                   frames.append(chunk)
+                   Wav_Chunks.append(chunk)
                 except Exception as e:
                    print("\nError:",e)
+
+       elapse = datetime.datetime.now() - Now
+       print("\n\nRecording has stopped2 (%s seconds Recorded) .\n\n"%elapse.seconds)
        stream.stop_stream()
        stream.close()
        audio.terminate()
+
+def AudIO(Mic_Device):
+
+   audio = pyaudio.PyAudio()
+   Mic_Rate = int(audio.get_device_info_by_index(Mic_Device).get('defaultSampleRate'))
+
+   if type(Mic_Device) == int:
+
+       Recording(audio,Mic_Rate,Mic_Device)
+
        try:
           with wave.open(str(Wavname),"wb") as w:
                w.setnchannels(1)
                w.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
                w.setframerate(Mic_Rate)
-               w.writeframes(b''.join(frames))
-               return(Opt_Dir+"/"+str(Wavname))
+               w.writeframes(b''.join(Wav_Chunks))
+          Wav_Duration(Wavname)
+
        except Exception as e:
-           print("\n\nError:",str(e))
+           print("\n\niciError:",str(e))
            sys.exit()
    else:
       print("\n\nMic not found.\n\n")
@@ -105,7 +121,7 @@ def Record(Mic_Device):
 
 Mic_Device = Enum_Devices()
 
-WavePath = Record(Mic_Device)
+AudIO(Mic_Device)
 print("\n\nWav saved at :",WavePath)
 print("\n\nmp4 saved at :",Opt_File)
 print("\n\nNow mixing both:")
