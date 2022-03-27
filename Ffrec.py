@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import sys,os,datetime,pyaudio,wave,subprocess
+import sys,os,datetime,pyaudio,wave,subprocess,signal
 from threading import Thread
 Now = datetime.datetime.now()
 DTime = (Now.strftime("%Y-%m-%d-%H-%M-%S"))
@@ -16,19 +16,27 @@ if os.path.exists(Opt_Dir) is False:
 os.chdir("./"+str(Opt_Dir))
 
 
+def handler(signum, frame):
+        global Stop
+        Stop = True
+        print(glob.glob(str(OptDir)+"/*.png"))
+        print("\nCome On !? Whats the rush!?")
+
+signal.signal(signal.SIGINT, handler)
+
 def ffmpeg(action,wvp=None,vp=None):
 
    if action == "rec":
-      cmd = "ffmpeg -video_size 1024x768 -framerate 4 -f x11grab -i :0.0 %s"%Opt_File
-      print("\n\nLaunching ffmpeg(rec):\n\n")
+      cmd = "ffmpeg -loglevel panic -video_size 1024x768 -framerate 4 -f x11grab -i :0.0 %s"%Opt_File
+      print("\nLaunching ffmpeg(rec):\n")
       print(cmd)
-      process = subprocess.Popen(['ffmpeg', '-video_size', '1024x768','-framerate','4','-f','x11grab','-i',':0.0',Opt_File])
+      process = subprocess.Popen(['ffmpeg','-loglevel','panic', '-video_size', '1024x768','-framerate','4','-f','x11grab','-i',':0.0',Opt_File])
       Thread(target=CheckProc).start()
 
    if action == "mix":
       fname = "FFinal-%s.mp4"%str(DTime)
       cmd = "ffmpeg -i %s -i %s %s"%(wvp,vp,fname)
-      print("\n\nLaunching ffmpeg(mix):\n\n")
+      print("\nLaunching ffmpeg(mix):\n")
       print(cmd)
       os.system(cmd)
 
@@ -46,7 +54,7 @@ def Enum_Devices():
    if type(Dev_Id) == int:
       return(Dev_Id)
    else:
-      print("\n\nMic not found\n")
+      print("\nMic not found\n")
       sys.exit()
 
 def CheckProc():
@@ -59,7 +67,7 @@ def CheckProc():
            if "returned non-zero exit status 1" in str(e):
                 elapse = datetime.datetime.now() - Now
                 Stop = True
-                print("\n\nRecording has stopped (%s seconds Recorded) .\n\n"%elapse.seconds)
+                print("\nRecording has stopped (%s seconds Recorded) .\n"%elapse.seconds)
                 return
 
 def Wav_Duration(file):
@@ -68,7 +76,7 @@ def Wav_Duration(file):
            frames = f.getnframes()
            rate = f.getframerate()
            wln = round(frames/rate,2)
-           print("\n\nWav Duration:%s\n\n"%datetime.timedelta(seconds=int(wln)))
+           print("\nWav Duration:%s\n"%datetime.timedelta(seconds=int(wln)))
    except Exception as e:
            print("Error:",str(e))
 
@@ -79,7 +87,7 @@ def Recording(audio,Mic_Rate,dvid):
        stream = audio.open(format=pyaudio.paInt16, channels=1,
                 rate=Mic_Rate, input=True,input_device_index = dvid,
                 frames_per_buffer=512)
-       print("\n\nRecording Audio...\n\n")
+       print("\nRecording Audio...\n")
        Thread(target=ffmpeg("rec")).start()
        while Stop is False:
                 try:
@@ -89,7 +97,7 @@ def Recording(audio,Mic_Rate,dvid):
                    print("\nError:",e)
 
        elapse = datetime.datetime.now() - Now
-       print("\n\nRecording has stopped2 (%s seconds Recorded) .\n\n"%elapse.seconds)
+       print("\nRecording has stopped2 (%s seconds Recorded) .\n"%elapse.seconds)
        stream.stop_stream()
        stream.close()
        audio.terminate()
@@ -112,17 +120,17 @@ def AudIO(Mic_Device):
           Wav_Duration(Wavname)
 
        except Exception as e:
-           print("\n\niciError:",str(e))
+           print("\niciError:",str(e))
            sys.exit()
    else:
-      print("\n\nMic not found.\n\n")
+      print("\nMic not found.\n")
       sys.exit()
 
 
 Mic_Device = Enum_Devices()
 
 AudIO(Mic_Device)
-print("\n\nWav saved at :",WavePath)
-print("\n\nmp4 saved at :",Opt_File)
-print("\n\nNow mixing both:")
+print("\nWav saved at :",WavePath)
+print("\nmp4 saved at :",Opt_File)
+print("\nNow mixing both:")
 ffmpeg("mix",Wavname,Opt_File)
