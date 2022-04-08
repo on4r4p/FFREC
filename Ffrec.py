@@ -199,13 +199,16 @@ def Get_Lenght(video,audio):
 #   print(cmda)
    v_len = subprocess.check_output(cmdv).decode(errors="ignore")
    a_len = subprocess.check_output(cmda).decode(errors="ignore")
+#   print("\nAdding 5 seconds to video cauz ur computer sucks..")
+
    try:
+#      v_len = float(v_len) - float(5.0)
       if float(v_len) > float(a_len):
           print("Video is longer than audio: %s/%s"%(float(v_len),float(a_len)))
-          return(float(v_len)/float(a_len))
-      else:
-          print("Audio is longer than video: %s/%s"(float(a_len),float(v_len)))
           return(float(a_len)/float(v_len))
+      else:
+          print("Audio is longer than video: %s/%s"%(float(a_len),float(v_len)))
+          return(float(v_len)/float(a_len))
    except Exception as e:
       print("Error:",e)
       return 0
@@ -220,11 +223,12 @@ def Split_record():
   print("\nChecking lenght:")
 
   atmp = Get_Lenght(Opt_File,Wavname)
+  
   ffmpeg("fix",Wavname,Mp3name,atmp)
 
   print("\nNow mixing both:")
-#  ffmpeg("mix",Opt_File,Mp3name)
-  ffmpeg("mix",Opt_File,Wavname)
+  ffmpeg("mix",Opt_File,Mp3name)
+#  ffmpeg("mix",Opt_File,Wavname)
 ####
 Built_in_Audio,Microphone = Get_Source("alsa","Microphone") 
 
