@@ -1,44 +1,95 @@
 #!/usr/bin/python3
-import sys,os,datetime,pyaudio,wave,subprocess,signal
+import sys,time,os,datetime,pyaudio,wave,subprocess,signal
 from threading import Thread
 Now = datetime.datetime.now()
 DTime = (Now.strftime("%Y-%m-%d-%H-%M-%S"))
-Opt_Dir = "ffrec-" + str(DTime)
-Opt_File = "ffrec-%s.mp4"%str(DTime)
-Wavname = "ffrec-%s.wav"%str(DTime)
-WavePath = Opt_Dir+"/"+str(Wavname)
 Wav_Chunks = []
 Stop = False
-
-if os.path.exists(Opt_Dir) is False:
-   os.makedirs(Opt_Dir)
-
-os.chdir("./"+str(Opt_Dir))
 
 
 def handler(signum, frame):
         global Stop
-        Stop = True
-        print(glob.glob(str(OptDir)+"/*.png"))
-        print("\nCome On !? Whats the rush!?")
+        if Stop is False:
+           os.system("pkill -15 ffmpeg")
+           time.sleep(2)
+           Stop = True
+           print("\nCome On !? Whats the rush!?")
+        else:
+           print("\nNot my problem dude just find another way")
 
 signal.signal(signal.SIGINT, handler)
 
-def ffmpeg(action,wvp=None,vp=None):
+def Get_Source(api,mic):
+
+   cmd = "pacmd list-sources"
+   cmd = cmd.split(" ")
+   answer = subprocess.check_output(cmd).decode(errors="ignore")
+   outputid = None
+   micid = None
+   if "index:" in answer:
+     answersplit = answer.split("index:")
+     for line in answersplit:
+         line = [l.strip("\n") for l in line.splitlines() if l.strip()]
+         for l in line:
+            if "name:" in l:
+                if api in l and "monitor" in l and "output" in l:
+                    outputid = l.split("<")[1].split(">")[0]
+                if api in l and mic in l and "input" in l:
+                    micid = l.split("<")[1].split(">")[0]
+
+     if micid is None or outputid is None:
+
+          print(answer)
+          print("\n")
+          if micid is None:
+             print("Havnt found %s"%mic)
+          if outputid is None:
+             print("Havnt found %s api"%api) 
+          sys.exit()
+     else:
+          print("Found system output: %s"%outputid)
+          print("Found mic input: %s"%micid)
+          return(outputid,micid)
+   else:
+          print(answer)
+          print("\nFound Nothing")
+          sys.exit()
+   
+def ffmpeg(action,arg1=None,arg2=None,arg3=None):
 
    if action == "rec":
-      cmd = "ffmpeg -loglevel panic -video_size 1024x768 -framerate 4 -f x11grab -i :0.0 %s"%Opt_File
-      print("\nLaunching ffmpeg(rec):\n")
-      print(cmd)
-      process = subprocess.Popen(['ffmpeg','-loglevel','panic', '-video_size', '1024x768','-framerate','4','-f','x11grab','-i',':0.0',Opt_File])
-      Thread(target=CheckProc).start()
+
+      if arg2:
+          cmd = "ffmpeg -loglevel panic -video_size 1024x768 -r %s -use_wallclock_as_timestamps 1 -f x11grab -i :0.0 -use_wallclock_as_timestamps 1 -f pulse -i %s -use_wallclock_as_timestamps 1 -f pulse -i %s -map 0:0 -use_wallclock_as_timestamps 1 -map 1:0 -c:v h264 -crf 23 -preset ultrafast -color_range 2 %s"%(FRAMERATE,arg1,arg2,Opt_File)
+          print("\nLaunching ffmpeg(recall):\n")
+          print(cmd)
+          print()
+          os.system(cmd)
+
+      if arg2 is None:
+          cmd = "ffmpeg -loglevel panic -video_size 1024x768 -r %s -use_wallclock_as_timestamps 1 -f x11grab -i :0.0 -use_wallclock_as_timestamps 1 -f pulse -i %s -use_wallclock_as_timestamps 1 -c:v h264 -crf 23 -preset ultrafast -color_range 2 %s"%(FRAMERATE,arg1,Opt_File)
+          print("\nLaunching ffmpeg(recall):\n")
+          print(cmd)
+          print()
+          cmd = cmd.split(" ")
+          process = subprocess.Popen(cmd)
+          Thread(target=CheckProc).start()
+
+   if action == "fix":
+          if arg3 != 0:
+             cmd = "ffmpeg -loglevel panic -i %s -filter:a atempo='%s' %s"%(arg1,arg3,arg2)
+          else:
+             cmd = "ffmpeg -loglevel panic -i %s %s"%(arg1,arg2)
+          print("\nLaunching ffmpeg(fix):\n")
+          print(cmd)
+          os.system(cmd)
 
    if action == "mix":
-      fname = "FFinal-%s.mp4"%str(DTime)
-      cmd = "ffmpeg -i %s -i %s %s"%(wvp,vp,fname)
-      print("\nLaunching ffmpeg(mix):\n")
-      print(cmd)
-      os.system(cmd)
+         fname = "FFinal-%s.mp4"%str(DTime)
+         cmd = "ffmpeg -loglevel panic -i %s -i %s -filter_complex '[1]amix=inputs=2[a]' -map 0:v -map '[a]' -c:v copy  %s"%(arg1,arg2,fname)
+         print("\nLaunching ffmpeg(mix):\n")
+         print(cmd)
+         os.system(cmd)
 
 def Enum_Devices():
    audio = pyaudio.PyAudio()
@@ -62,12 +113,11 @@ def CheckProc():
    while True:
         try:
            checkproc = int(subprocess.check_output(["pidof","-s","ffmpeg"]))
-           time.sleep(1)
+           time.sleep(0.5)
         except Exception as e:
            if "returned non-zero exit status 1" in str(e):
                 elapse = datetime.datetime.now() - Now
                 Stop = True
-                print("\nRecording has stopped (%s seconds Recorded) .\n"%elapse.seconds)
                 return
 
 def Wav_Duration(file):
@@ -80,24 +130,31 @@ def Wav_Duration(file):
    except Exception as e:
            print("Error:",str(e))
 
-def Recording(audio,Mic_Rate,dvid):
+def Ffsplit(audio,Mic_Rate,dvid,ffcmd=None):
        global Wav_Chunks
        Wav_Chunks = []
+
+       Thread(target=ffmpeg("rec",Built_in_Audio)).start()
+
+       while True:
+           if os.path.exists(Opt_File) is False:
+              time.sleep(0.1)
+           else:
+              break
 
        stream = audio.open(format=pyaudio.paInt16, channels=1,
                 rate=Mic_Rate, input=True,input_device_index = dvid,
                 frames_per_buffer=512)
        print("\nRecording Audio...\n")
-       Thread(target=ffmpeg("rec")).start()
        while Stop is False:
                 try:
                    chunk = stream.read(512)
                    Wav_Chunks.append(chunk)
                 except Exception as e:
                    print("\nError:",e)
-
+ 
        elapse = datetime.datetime.now() - Now
-       print("\nRecording has stopped2 (%s seconds Recorded) .\n"%elapse.seconds)
+       print("\nRecording has stopped (%s seconds Recorded) .\n"%elapse.seconds)
        stream.stop_stream()
        stream.close()
        audio.terminate()
@@ -109,7 +166,7 @@ def AudIO(Mic_Device):
 
    if type(Mic_Device) == int:
 
-       Recording(audio,Mic_Rate,Mic_Device)
+       Ffsplit(audio,Mic_Rate,Mic_Device)
 
        try:
           with wave.open(str(Wavname),"wb") as w:
@@ -126,11 +183,72 @@ def AudIO(Mic_Device):
       print("\nMic not found.\n")
       sys.exit()
 
+def Rm(files):
+  print("\nRemoving old files")
+  for r in files:
+     print("-deleting:",r)
+     os.remove(r)
+  print("\nDone")
 
-Mic_Device = Enum_Devices()
 
-AudIO(Mic_Device)
-print("\nWav saved at :",WavePath)
-print("\nmp4 saved at :",Opt_File)
-print("\nNow mixing both:")
-ffmpeg("mix",Wavname,Opt_File)
+def Get_Lenght(video,audio):
+
+   cmdv= ("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s"%video).split(" ")
+   cmda= ("ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 %s"%audio).split(" ")
+#   print(cmdv)
+#   print(cmda)
+   v_len = subprocess.check_output(cmdv).decode(errors="ignore")
+   a_len = subprocess.check_output(cmda).decode(errors="ignore")
+   try:
+      if float(v_len) > float(a_len):
+          print("Video is longer than audio: %s/%s"%(float(v_len),float(a_len)))
+          return(float(v_len)/float(a_len))
+      else:
+          print("Audio is longer than video: %s/%s"(float(a_len),float(v_len)))
+          return(float(a_len)/float(v_len))
+   except Exception as e:
+      print("Error:",e)
+      return 0
+
+
+def Split_record():
+  Mic_Device = Enum_Devices()
+  AudIO(Mic_Device)
+
+  print("\nWav saved at :",WavePath)
+  print("\nVideo saved at :",Opt_File)
+  print("\nChecking lenght:")
+
+  atmp = Get_Lenght(Opt_File,Wavname)
+  ffmpeg("fix",Wavname,Mp3name,atmp)
+
+  print("\nNow mixing both:")
+#  ffmpeg("mix",Opt_File,Mp3name)
+  ffmpeg("mix",Opt_File,Wavname)
+####
+Built_in_Audio,Microphone = Get_Source("alsa","Microphone") 
+
+FRAMERATE = 4
+V_Format = "avi" #FUCK MP4 !!!...AND MKV !!!!
+Opt_Dir = "ffrec-" + str(DTime)
+Wavname = "ffrec-%s.wav"%str(DTime)
+Mp3name = "ffrec-%s.mp3"%str(DTime)
+WavePath = Opt_Dir+"/"+str(Wavname)
+Opt_File = "ffrec-%s.%s"%(str(DTime),V_Format)
+####
+
+if os.path.exists(Opt_Dir) is False:
+   os.makedirs(Opt_Dir)
+
+os.chdir("./"+str(Opt_Dir))
+
+######recording screen only with ffmpeg and mic with pyaudio
+
+Split_record()
+
+Rm([Wavname,Mp3name,Opt_File])
+
+####### Uncomment for Recording both screen mic and output audio with ffmpeg
+#ffmpeg("rec",Built_in_Audio,Microphone)
+#print("\nVideo saved at :",Opt_File)
+
