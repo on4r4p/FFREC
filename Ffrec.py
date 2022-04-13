@@ -162,10 +162,11 @@ def Mixshot(audio=None):
     else:
            cmd = "ffmpeg "
     fname = "FFinal-%s.%s"%(str(DTime),FORMAT)
+    Fps = Wav_Duration(audio)
     if audio:
-       cmd += """-framerate %s -pattern_type glob -i "*.png" -i %s -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,audio,fname)
+       cmd += """-framerate %s -pattern_type glob -i "*.png" -i %s -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(Fps,audio,fname)
     else:
-       cmd += """-framerate %s -pattern_type glob -i "*.png" -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,fname)
+       cmd += """-framerate %s -pattern_type glob -i "*.png" -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(Fps,fname)
     print()
     print(cmd)
     print()
@@ -207,8 +208,8 @@ def Wav_Duration(file):
            wln = round(frames/rate,2)
            print("\nWav Duration:%s\n"%datetime.timedelta(seconds=int(wln)))
            Fps = Find_Fps(PngsLen,wln)
-           print("Nearest frame per seconde : Png-files:%s/Wav-Duration:%s = %s fps"%(PngsLen,WaveLen,Fps))
-           return(wln)
+           print("Nearest frame per seconde : Png-files:%s/Wav-Duration:%s = %s fps"%(PngsLen,wln,Fps))
+           return(Fps)
    except Exception as e:
            print("Error:",str(e))
 
