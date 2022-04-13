@@ -93,7 +93,7 @@ def Screenshot():
    while Stop is False:
       timer.sleep()
       Screename = "SShot-" + str(PngsLen).zfill(12) + ".png"
-      cmd = "import -window root %s"%Screename
+      cmd = "import -silent -window root %s"%Screename
       os.system(cmd)
       PngsLen += 1
 
@@ -122,7 +122,7 @@ def ffmpeg(wait=None):
              Thread(target=CheckProc).start()
           else:
               os.system(cmd)
-              print("\nnowaitVideo saved at :",Tmp_Opt_File)
+              print("\nVideo saved at :",Tmp_Opt_File)
 
 
 def Fix(audio1,audio2,atmp):
@@ -233,29 +233,26 @@ def Ffsplit(audio,Mic_Rate,dvid):
                 try:
                    chunk = stream.read(512)
                    Wav_Chunks.append(chunk)
-                   lastchunk = chunk
                 except Exception as e:
                   if "Stream closed" in str(e):
                      try:
                         stream.stop_stream()
-                     except:
-                        pass
+                     except Exception as e:
+                        print(e)
                      try:
                         stream.close()
-                     except:
-                        pass
+                     except Exception as e:
+                        print(e)
                      try:
                         audio.terminate()
-                     except:
-                        pass
+                     except Exception as e:
+                        print(e)
                      try:
-                        Wav_Chunks.append(lastchunk)
-                     except:
-                        pass
-                     print("\nError:%s [Restarting]"%str(e))
-                     stream = audio.open(format=pyaudio.paInt16, channels=1,rate=Mic_Rate,
+                        print("\nError:%s [Restarting]"%str(e))
+                        stream = audio.open(format=pyaudio.paInt16, channels=1,rate=Mic_Rate,
                               input=True,input_device_index = dvid,frames_per_buffer=512)
-
+                     except Exception as e:
+                         print(e)
        elapse = datetime.datetime.now() - Now
        print("\nRecording has stopped (%s seconds Recorded) .\n"%elapse.seconds)
 
@@ -299,6 +296,7 @@ def AudIO(Mic_Device):
       sys.exit()
 
 def Rm(files):
+  return()
   print("\nRemoving old files")
   for r in files:
      if "*.png" not in r:
@@ -368,17 +366,14 @@ def main():
 
    if CAPTURE == "screenshot":
 
-      if len(AUDIO_ARG) > 0:
-         if "pyaudio" in AUDIO_ARG:
+      
+     if len(PYADEV) > 0:
             Mic_Device = Enum_Devices(PYADEV[0])
             AudIO(Mic_Device)
             Mixshot(Wavname)
             Rm([Wavname])
             Rmshot()
-         else:
-            print("Screenshot works only with pyaudio atm")
-            sys.exit(1)
-      else:
+     else:
          Screenshot()
          Mixshot()
          Rmshot()
@@ -563,7 +558,7 @@ if __name__ == "__main__":
     Wavname = "%s-ffrec-%s.wav"%(str(OUTPUT),str(DTime))
     Mp3name = "%s-ffrec-%s.mp3"%(str(OUTPUT),str(DTime))
     WavePath = Output_Dir+"/"+str(Wavname)
-    Tmp_Opt_File = "%s-ffrec-%s.%s"%(str(OUTPUT),str(DTime),".avi")
+    Tmp_Opt_File = "%s-ffrec-%s.avi"%(str(OUTPUT),str(DTime))
     Opt_File = "%s-ffrec-%s.%s"%(str(OUTPUT),str(DTime),FORMAT)
     PngsLen = 0
     main()
