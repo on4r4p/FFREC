@@ -163,9 +163,12 @@ def Mixshot(audio=None):
            cmd = "ffmpeg "
     fname = "FFinal-%s.%s"%(str(DTime),FORMAT)
     if audio:
-       cmd = """-framerate %s -pattern_type glob -i "*.png" -i %s -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,audio,fname)
+       cmd += """-framerate %s -pattern_type glob -i "*.png" -i %s -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,audio,fname)
     else:
-       cmd = """-framerate %s -pattern_type glob -i "*.png" -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,fname)
+       cmd += """-framerate %s -pattern_type glob -i "*.png" -vf scale=720:-1 -c:v libx264 -pix_fmt yuv420p %s"""%(FRAMERATE,fname)
+    print()
+    print(cmd)
+    print()
     os.system(cmd)
 
 def Enum_Devices(Dev_Name):
@@ -296,7 +299,7 @@ def AudIO(Mic_Device):
       sys.exit()
 
 def Rm(files):
-  return()
+#  return()
   print("\nRemoving old files")
   for r in files:
      if "*.png" not in r:
@@ -310,6 +313,7 @@ def Rm(files):
   print("\nDone")
 
 def Rmshot():
+#   return()
    files = os.listdir(".")
    for item in files:
       if item.endswith(".png"):
