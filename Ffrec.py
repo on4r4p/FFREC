@@ -5,6 +5,7 @@ from threading import Thread
 from pynput import keyboard
 Now = datetime.datetime.now()
 DTime = (Now.strftime("%Y-%m-%d-%H-%M-%S"))
+MIXMIC = False
 Wav_Chunks = []
 Stop = False
 Exit = 0
@@ -147,8 +148,12 @@ def Mix(video,audio):
    print("\nNow mixing both:")
 
    fname = "FFinal-%s.%s"%(str(DTime),FORMAT)
-   if len(FFDEV)>0 and len(PYADEV)>0:
+
+   if MIXMIC is True:
+       cmd += "-i %s %s"%(video,fname)
+   elif len(FFDEV)>0 and len(PYADEV)>0:
        cmd += "-i %s -i %s -filter_complex '[1]amix=inputs=2[a]' -map 0:v -map '[a]' -c:v copy  %s"%(video,audio,fname)
+
    else:
        cmd += "-i %s -i %s %s"%(video,audio,fname)
 
@@ -300,6 +305,7 @@ def AudIO(Mic_Device):
       sys.exit()
 
 def Rm(files):
+#  print("Skipping removing junk files")
 #  return()
   print("\nRemoving old files")
   for r in files:
@@ -395,6 +401,15 @@ def main():
 
       else:
             ffmpeg()
+            Mix(Tmp_Opt_File,None)
+            Rm([Tmp_Opt_File]) 
+
+   cmd = "pulseaudio -k"
+   print(cmd)
+   cmd = cmd.split(" ")
+   process = subprocess.Popen(cmd)
+   time.sleep(0.5)
+   print("Exiting..")
 
 def Find_Fps(p,w):
     f = 0.0001
@@ -432,6 +447,33 @@ def List_Audio():
             if "name:" in l:
                print(l.strip())
 
+
+def MixMic(option):
+   cmd = "pactl load-module module-null-sink sink_name=MixMic sink_properties=device.description=FfrecMix"
+   print(cmd)
+   cmd = cmd.split(" ")
+   process = subprocess.Popen(cmd)
+   time.sleep(0.5)
+
+   cmd = "pactl load-module module-loopback source="+str(option)
+   print(cmd)
+   cmd = cmd.split(" ")
+   process = subprocess.Popen(cmd)
+   time.sleep(0.5)
+
+   cmd = "pactl load-module module-loopback sink=MixMic"
+   print(cmd)
+   cmd = cmd.split(" ")
+   process = subprocess.Popen(cmd)
+   time.sleep(0.5)
+
+   cmd = "pacmd set-sink-volume MixMic 0x10000"
+   print(cmd)
+   cmd = cmd.split(" ")
+   process = subprocess.Popen(cmd)
+   time.sleep(0.5)
+   return("MixMic.monitor")
+
 if __name__ == "__main__":
     FFDEV = []
     PYADEV = []
@@ -462,7 +504,7 @@ if __name__ == "__main__":
         "-a",
         "--audio",
         dest="AUDIO",
-        help='Record Device audio with ffmpeg or pyaudio or both: -a "[ffmpeg]=[MIC],[Speakers] [pyaudio]=[DEVICE]"',
+        help='Record Device audio with ffmpeg or pyaudio or mixmic to use ffmpeg to mix both Speaker and Mic on the fly : -a "[ffmpeg]=[DEVICE MIC],[DEVICE Speakers] [pyaudio]=[DEVICE] [mixmic]=[DEVICE]"',
         default=None,
         metavar="option"
     )
@@ -519,11 +561,17 @@ if __name__ == "__main__":
              o = o.split("=")
              prog = o[0]
              option = o[1]
-             if prog != "ffmpeg" and prog != "pyaudio":
+             if prog != "ffmpeg" and prog != "pyaudio" and prog != "mixmic":
                 print("-a,--audio wrong arguments.")
                 print(prog)
                 parser.print_help(sys.stderr)
                 sys.exit(1)
+             if prog == "mixmic":
+                if option.count(" ") >1:
+                    print("Max 2 devices for ffmpeg cauz im lazy")
+                    sys.exit(1)
+                MIXMIC = True
+                FFDEV.append(MixMic(option))
              if prog == "ffmpeg":
                 if option.count(" ") >1:
                     print("Max 2 devices for ffmpeg cauz im lazy")
