@@ -312,7 +312,15 @@ def Rm(files):
      if "*.png" not in r:
         print("-deleting:",r)
         try:
-          os.remove(r)
+          while True:
+              answer = input("Oldfile : %s\nWould you like to delete this file:(Y/N):"%s)
+              if answer == "Y":
+                   os.remove(r)
+                   break
+              elif answer == "N":
+                   print("Skipping removing :",str(r))
+                   break
+
         except Exception as e:
           print("Error:",e)
      else:
